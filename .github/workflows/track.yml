@@ -23,14 +23,19 @@ jobs:
           # Check if gh-pages branch exists
           if git ls-remote --heads origin gh-pages | grep -q gh-pages; then
             echo "gh-pages branch exists, checking out..."
+            # Remove pages directory if it exists and checkout gh-pages
+            rm -rf pages
             git worktree add pages gh-pages
           else
             echo "gh-pages branch doesn't exist, creating..."
+            # Save index.html before removing pages directory
+            cp pages/index.html /tmp/index.html
+            rm -rf pages
             git worktree add --detach pages
             cd pages
             git checkout --orphan gh-pages
             git rm -rf . 2>/dev/null || true
-            cp ../pages/index.html . 2>/dev/null || echo "No index.html yet"
+            cp /tmp/index.html . 2>/dev/null || echo "No index.html yet"
             git add -A
             git commit -m "Initial gh-pages setup" --allow-empty
             git push -u origin gh-pages

@@ -20,6 +20,10 @@ jobs:
 
       - name: Setup gh-pages branch
         run: |
+          # Configure git identity
+          git config --global user.name "github-actions[bot]"
+          git config --global user.email "github-actions[bot]@users.noreply.github.com"
+
           # Check if gh-pages branch exists
           if git ls-remote --heads origin gh-pages | grep -q gh-pages; then
             echo "gh-pages branch exists, checking out..."

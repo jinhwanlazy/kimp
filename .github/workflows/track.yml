@@ -1,0 +1,65 @@
+name: Track Kimchi Premium
+
+on:
+  schedule:
+    - cron: '*/5 * * * *'  # Every 5 minutes
+  workflow_dispatch:  # Allow manual trigger
+
+jobs:
+  track:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+
+    steps:
+      - name: Checkout code
+        uses: actions/checkout@v4
+        with:
+          ref: main
+          fetch-depth: 0
+
+      - name: Setup gh-pages branch
+        run: |
+          # Check if gh-pages branch exists
+          if git ls-remote --heads origin gh-pages | grep -q gh-pages; then
+            echo "gh-pages branch exists, checking out..."
+            git worktree add pages gh-pages
+          else
+            echo "gh-pages branch doesn't exist, creating..."
+            git worktree add --detach pages
+            cd pages
+            git checkout --orphan gh-pages
+            git rm -rf . 2>/dev/null || true
+            cp ../pages/index.html . 2>/dev/null || echo "No index.html yet"
+            git add -A
+            git commit -m "Initial gh-pages setup" --allow-empty
+            git push -u origin gh-pages
+            cd ..
+          fi
+
+      - name: Set up Python
+        uses: actions/setup-python@v5
+        with:
+          python-version: '3.14'
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v4
+
+      - name: Install dependencies
+        run: uv sync
+
+      - name: Run tracker
+        env:
+          TELEGRAM_BOT_TOKEN: ${{ secrets.TELEGRAM_BOT_TOKEN }}
+          TELEGRAM_CHAT_ID: ${{ vars.TELEGRAM_CHAT_ID }}
+          NTFY_TOPIC: ${{ vars.NTFY_TOPIC }}
+        run: uv run python main.py
+
+      - name: Commit and push data
+        run: |
+          cd pages
+          git config user.name "github-actions[bot]"
+          git config user.email "github-actions[bot]@users.noreply.github.com"
+          git add *.csv .notification_state
+          git diff --staged --quiet || git commit -m "Update kimchi premium data $(date -u +"%Y-%m-%d %H:%M:%S UTC")"
+          git push
